@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Audio to Sign Language Converter</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        #animation { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Audio to Sign Language Converter</h1>
+    <button onclick="startRecognition()">🎤 Speak</button>
+    <input type="text" id="textInput" placeholder="Or type text here" />
+    <button onclick="submitText()">Submit</button>
+    <div id="animation">
+        <video id="signVideo" width="320" height="240" controls autoplay></video>
+    </div>
+
+    <script>
+        function startRecognition() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang =  'te-IN';  // Set language to Telugu
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('textInput').value = transcript;  // Display transcribed Telugu text
+                submitText();  // Submit the text to backend for processing
+            };
+            recognition.start();
+        }
+
+        function submitText() {
+            const text = document.getElementById('textInput').value;
+            fetch('/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const video = document.getElementById('signVideo');
+                const animationUrls = data.animation_urls;
+
+                // If the text was in Telugu, update the text input field with the English translation
+                if (data.translated_text) {
+                    document.getElementById('textInput').value = data.translated_text;  // Display translated English text
+                }
+
+                // Play the ISL animation videos
+                if (animationUrls.length > 0) {
+                    let currentIndex = 0;
+                    playNextAnimation();
+
+                    function playNextAnimation() {
+                        if (currentIndex < animationUrls.length) {
+                            video.src = animationUrls[currentIndex];
+                            video.load();
+                            video.play();
+                            video.onended = function() {
+                                currentIndex++;
+                                playNextAnimation();
+                            };
+                        }
+                    }
+                } else {
+                    video.src = ''; // No animation found
+                }
+            });
+        }
+    </script>
+</body>
+</html>
